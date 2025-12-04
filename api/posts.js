@@ -1,4 +1,6 @@
-// API endpoint for retrieving and submitting dialect posts
+/* API endpoint for retrieving and submitting dialect posts */
+
+// In-memory posts list with initial sample data
 let posts = [
   {
     id: 1,
@@ -32,14 +34,32 @@ let posts = [
   }
 ];
 
+// Mapping of dialect names to region identifiers
+const regionMap = {
+  '粤语': 'yue',
+  '吴语': 'wu',
+  '闽南/潮汕': 'min',
+  '官话/北方': 'north',
+  '四川话': 'north'
+};
+
+/**
+ * API route handler
+ *
+ * Supports two methods:
+ *   - GET: returns the current list of posts
+ *   - POST: accepts a JSON body with dialect, content, translation and duration;
+ *            constructs a new post with default author/avatar and regionId mapping,
+ *            prepends it to the posts array and returns it
+ */
 export default async function handler(req, res) {
-  // Handle GET requests: return the list of posts
+  // Return the current posts for GET requests
   if (req.method === 'GET') {
     res.status(200).json(posts);
     return;
   }
 
-  // Handle POST requests: add a new post to the list
+  // Create a new post for POST requests
   if (req.method === 'POST') {
     let data = req.body;
     // If the body is a string, attempt to parse it as JSON
@@ -52,10 +72,10 @@ export default async function handler(req, res) {
     }
     const newPost = {
       id: Date.now(),
-      author: data.author || '匿名',
-      avatar: data.avatar || '',
+      author: '我',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Me',
       dialect: data.dialect || '',
-      regionId: data.regionId || 'all',
+      regionId: regionMap[data.dialect] || 'all',
       content: data.content || '',
       translation: data.translation || '',
       time: '刚刚',
@@ -70,6 +90,6 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Return 405 for any other HTTP methods
+  // Reject other methods
   res.status(405).json({ message: 'Method Not Allowed' });
 }
