@@ -147,7 +147,8 @@
 </div>
 
 <script>
-   const { createApp, ref, computed, onMounted } = Vue;
+    // 引入 onMounted 钩子用于页面加载时获取后端数据
+    const { createApp, ref, computed, onMounted } = Vue;
     createApp({
         setup() {
             const showUploadModal = ref(false);
@@ -167,8 +168,10 @@
                 { id: 'min', name: '闽南/潮汕', count: 180, color: 'bg-orange-500' }
             ];
 
-            // 初始化示例帖子数据，用于演示
-              // 在组件挂载后请求后端接口获取帖子列表
+            // 帖子列表，初始为空，数据将在页面加载后从后端获取
+            const posts = ref([]);
+
+            // 在组件挂载后请求后端接口获取帖子列表
             onMounted(async () => {
                 try {
                     const response = await fetch('/api/posts');
@@ -179,10 +182,6 @@
                     console.error('获取帖子数据失败：', err);
                 }
             });
-          const posts = ref([
-                { id: 1, author: '老广阿强', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack', dialect: '粤语', regionId: 'yue', content: '做人最紧要系开心', translation: '做人最重要的是开心', time: '10分钟前', duration: 5, currentTime: 0, isPlaying: false, likes: 124, verified: true },
-                { id: 2, author: '成都辣妹', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Molly', dialect: '四川话', regionId: 'north', content: '今天吃火锅，巴适得板！', translation: '今天吃火锅，非常舒服！', time: '25分钟前', duration: 8, currentTime: 0, isPlaying: false, likes: 89, verified: true }
-            ]);
 
             // 根据选中的分区筛选帖子列表
             const filteredPosts = computed(() => currentFilter.value === 'all' ? posts.value : posts.value.filter(p => p.regionId === currentFilter.value));
@@ -237,23 +236,42 @@
                 return `00:${Math.floor(s).toString().padStart(2, '0')}`;
             };
 
-            // 发布新帖子，添加至列表
-            const submitPost = () => {
-                posts.value.unshift({
-                    id: Date.now(),
-                    author: '我',
-                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Me',
-                    dialect: uploadForm.value.dialect,
-                    regionId: 'all',
-                    content: uploadForm.value.content,
-                    translation: uploadForm.value.translation,
-                    time: '刚刚',
-                    duration: recordingTime.value || 3,
-                    currentTime: 0,
-                    isPlaying: false,
-                    likes: 0,
-                    verified: false
-                });
+            // 发布新帖子到后端接口，并插入列表
+            const submitPost = async () => {
+                try {
+                    const res = await fetch('/api/posts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content: uploadForm.value.content,
+                            translation: uploadForm.value.translation,
+                            dialect: uploadForm.value.dialect,
+                            duration: recordingTime.value || 3
+                        })
+                    });
+                    if (!res.ok) throw new Error('网络请求失败');
+                    const newPost = await res.json();
+                    // 将后端返回的新帖子插入列表顶部
+                    posts.value.unshift(newPost);
+                } catch (err) {
+                    console.error('发布帖子失败：', err);
+                    // 网络请求失败时，仍然在客户端生成一条帖子以提升用户体验
+                    posts.value.unshift({
+                        id: Date.now(),
+                        author: '我',
+                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Me',
+                        dialect: uploadForm.value.dialect,
+                        regionId: 'all',
+                        content: uploadForm.value.content,
+                        translation: uploadForm.value.translation,
+                        time: '刚刚',
+                        duration: recordingTime.value || 3,
+                        currentTime: 0,
+                        isPlaying: false,
+                        likes: 0,
+                        verified: false
+                    });
+                }
                 showUploadModal.value = false;
             };
 
