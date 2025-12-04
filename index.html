@@ -147,7 +147,7 @@
 </div>
 
 <script>
-    const { createApp, ref, computed } = Vue;
+   const { createApp, ref, computed, onMounted } = Vue;
     createApp({
         setup() {
             const showUploadModal = ref(false);
@@ -168,7 +168,18 @@
             ];
 
             // 初始化示例帖子数据，用于演示
-            const posts = ref([
+              // 在组件挂载后请求后端接口获取帖子列表
+            onMounted(async () => {
+                try {
+                    const response = await fetch('/api/posts');
+                    if (!response.ok) throw new Error('网络请求失败');
+                    const data = await response.json();
+                    posts.value = data;
+                } catch (err) {
+                    console.error('获取帖子数据失败：', err);
+                }
+            });
+          const posts = ref([
                 { id: 1, author: '老广阿强', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack', dialect: '粤语', regionId: 'yue', content: '做人最紧要系开心', translation: '做人最重要的是开心', time: '10分钟前', duration: 5, currentTime: 0, isPlaying: false, likes: 124, verified: true },
                 { id: 2, author: '成都辣妹', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Molly', dialect: '四川话', regionId: 'north', content: '今天吃火锅，巴适得板！', translation: '今天吃火锅，非常舒服！', time: '25分钟前', duration: 8, currentTime: 0, isPlaying: false, likes: 89, verified: true }
             ]);
