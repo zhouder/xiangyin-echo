@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>乡音 - 方言保护与学习平台</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Remix Icon font -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Google Fonts: Noto Sans SC for simplified Chinese support -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f8fafc; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 声波动画 */
+        .bar { width: 3px; background-color: #a5b4fc; border-radius: 9999px; height: 4px; transition: height 0.1s ease; }
+        .playing .bar { background-color: #4f46e5; animation: sound 400ms linear infinite alternate; }
+        .playing .bar:nth-child(1) { animation-delay: -1.2s; height: 10px; }
+        .playing .bar:nth-child(2) { animation-delay: -2.4s; height: 18px; }
+        .playing .bar:nth-child(3) { animation-delay: -0.5s; height: 12px; }
+        .playing .bar:nth-child(4) { animation-delay: -3.1s; height: 20px; }
+        .playing .bar:nth-child(5) { animation-delay: -1.8s; height: 10px; }
+        @keyframes sound { 0% { height: 4px; opacity: 0.5; } 100% { height: 24px; opacity: 1; } }
+        /* 录音波纹动画 */
+        .ripple { position: absolute; border-radius: 50%; border: 2px solid rgba(79, 70, 229, 0.5); animation: ripple-anim 2s infinite linear; }
+        .ripple:nth-child(1) { animation-delay: 0s; }
+        .ripple:nth-child(2) { animation-delay: 0.6s; }
+        .ripple:nth-child(3) { animation-delay: 1.2s; }
+        @keyframes ripple-anim { 0% { width: 0; height: 0; opacity: 1; } 100% { width: 200px; height: 200px; opacity: 0; } }
+    </style>
+</head>
+<body>
+
+<div id="app" class="flex flex-col h-screen overflow-hidden">
+    <!-- 顶部导航 -->
+    <nav class="bg-white border-b border-gray-200 h-16 flex-shrink-0 z-30 px-4 md:px-8 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                <i class="ri-sound-module-fill text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-xl text-gray-800 tracking-tight">乡音 <span class="text-indigo-600">Echo</span></h1>
+                <p class="text-xs text-gray-400 -mt-1 hidden sm:block">留住家乡的声音</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="hidden sm:block relative">
+                <i class="ri-search-2-line absolute left-3 top-2.5 text-gray-400"></i>
+                <input type="text" placeholder="搜索方言..." class="bg-gray-100 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 w-48">
+            </div>
+            <button @click="openUploadModal" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full font-medium shadow-md transition-transform transform active:scale-95 flex items-center gap-2">
+                <i class="ri-mic-fill"></i> <span class="hidden sm:inline">贡献乡音</span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- 左侧导航 -->
+        <aside class="w-64 bg-white border-r border-gray-200 hidden lg:flex flex-col p-6 overflow-y-auto no-scrollbar">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">方言分区</h3>
+            <div class="space-y-1">
+                <button v-for="region in regions" :key="region.id" @click="currentFilter = region.id" 
+                    :class="currentFilter === region.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'"
+                    class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between group transition-colors">
+                    <span class="flex items-center gap-2"><span :class="region.color" class="w-2 h-2 rounded-full"></span>{{ region.name }}</span>
+                    <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ region.count }}</span>
+                </button>
+            </div>
+            <div class="mt-auto bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-4 text-white shadow-lg mt-8">
+                <h4 class="font-bold text-lg">每日一句</h4>
+                <p class="text-indigo-100 text-sm mt-1">挑战听懂温州话</p>
+                <button class="mt-3 bg-white bg-opacity-20 hover:bg-opacity-30 text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm">立即挑战</button>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6 lg:p-8" id="main-scroll">
+            <div class="max-w-3xl mx-auto space-y-6">
+                <div v-for="post in filteredPosts" :key="post.id" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <img :src="post.avatar" class="w-11 h-11 rounded-full bg-gray-200">
+                            <div>
+                                <h3 class="font-bold text-gray-800 text-sm">{{ post.author }}</h3>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-medium">{{ post.dialect }}</span>
+                                    <span class="text-xs text-gray-400">{{ post.time }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-lg font-bold text-gray-900 mb-1">{{ post.content }}</h4>
+                        <p class="text-sm text-gray-500">普通话：{{ post.translation }}</p>
+                    </div>
+                    <!-- 播放器 -->
+                    <div class="bg-gray-50 rounded-xl p-3 flex items-center gap-4 border border-gray-100" :class="{'bg-indigo-50 border-indigo-100': post.isPlaying}">
+                        <button @click="togglePlay(post)" class="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md transition" :class="post.isPlaying ? 'bg-indigo-500' : 'bg-gray-800'">
+                            <i :class="post.isPlaying ? 'ri-pause-fill' : 'ri-play-fill'" class="text-xl"></i>
+                        </button>
+                        <div class="flex-1">
+                            <div class="h-8 flex items-center gap-1 mb-1" :class="{'playing': post.isPlaying}">
+                                <div v-for="n in 25" :key="n" class="bar"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-400 font-mono">
+                                <span>{{ formatTime(post.currentTime) }}</span>
+                                <span>{{ formatTime(post.duration) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-50 text-gray-500 text-sm">
+                        <button @click="post.likes++" class="hover:text-pink-500 flex items-center gap-1"><i class="ri-heart-line"></i> {{ post.likes }}</button>
+                        <span v-if="post.verified" class="text-green-600 bg-green-50 px-2 py-1 rounded text-xs"><i class="ri-checkbox-circle-fill"></i> 本地人认证</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 录音上传弹窗 -->
+    <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm" @click="showUploadModal = false"></div>
+        <div class="bg-white rounded-2xl w-full max-w-lg relative z-10 p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-bold text-lg">贡献家乡话</h3>
+                <button @click="showUploadModal = false"><i class="ri-close-line text-2xl text-gray-400"></i></button>
+            </div>
+            <div class="flex flex-col items-center justify-center mb-8 relative h-40">
+                <div v-if="isRecording" class="absolute inset-0 flex items-center justify-center"><div class="ripple"></div><div class="ripple"></div><div class="ripple"></div></div>
+                <button @click="toggleRecording" class="w-20 h-20 rounded-full flex items-center justify-center text-3xl text-white shadow-xl relative z-10 transition transform hover:scale-105" :class="isRecording ? 'bg-red-500 animate-pulse' : 'bg-indigo-600'">
+                    <i :class="isRecording ? 'ri-stop-fill' : 'ri-mic-fill'"></i>
+                </button>
+                <p class="mt-4 text-sm font-medium" :class="isRecording ? 'text-red-500' : 'text-gray-500'">{{ isRecording ? formatTime(recordingTime) : (recordedBlob ? '录音完成' : '点击麦克风开始') }}</p>
+            </div>
+            <div class="space-y-4">
+                <input v-model="uploadForm.content" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="方言原文">
+                <input v-model="uploadForm.translation" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="普通话释义">
+                <select v-model="uploadForm.dialect" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"><option v-for="r in regions" :value="r.name">{{ r.name }}</option></select>
+                <button @click="submitPost" :disabled="!recordedBlob && !isRecording" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition">发布</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, computed } = Vue;
+    createApp({
+        setup() {
+            const showUploadModal = ref(false);
+            const isRecording = ref(false);
+            const recordingTime = ref(0);
+            const recordedBlob = ref(null);
+            const currentFilter = ref('all');
+            const uploadForm = ref({ content: '', translation: '', dialect: '官话' });
+            let recTimer, playTimer;
+
+            // 定义各方言分区及统计数量，颜色用于列表标记
+            const regions = [
+                { id: 'all', name: '全部', count: 1205, color: 'bg-gray-400' },
+                { id: 'north', name: '官话/北方', count: 450, color: 'bg-blue-500' },
+                { id: 'yue', name: '粤语', count: 320, color: 'bg-red-500' },
+                { id: 'wu', name: '吴语', count: 210, color: 'bg-green-500' },
+                { id: 'min', name: '闽南/潮汕', count: 180, color: 'bg-orange-500' }
+            ];
+
+            // 初始化示例帖子数据，用于演示
+            const posts = ref([
+                { id: 1, author: '老广阿强', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack', dialect: '粤语', regionId: 'yue', content: '做人最紧要系开心', translation: '做人最重要的是开心', time: '10分钟前', duration: 5, currentTime: 0, isPlaying: false, likes: 124, verified: true },
+                { id: 2, author: '成都辣妹', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Molly', dialect: '四川话', regionId: 'north', content: '今天吃火锅，巴适得板！', translation: '今天吃火锅，非常舒服！', time: '25分钟前', duration: 8, currentTime: 0, isPlaying: false, likes: 89, verified: true }
+            ]);
+
+            // 根据选中的分区筛选帖子列表
+            const filteredPosts = computed(() => currentFilter.value === 'all' ? posts.value : posts.value.filter(p => p.regionId === currentFilter.value));
+
+            // 切换播放状态，模拟音频播放进度
+            const togglePlay = (post) => {
+                if (post.isPlaying) {
+                    post.isPlaying = false;
+                    clearInterval(playTimer);
+                    return;
+                }
+                // 停止其他帖子播放状态
+                posts.value.forEach(p => { p.isPlaying = false; p.currentTime = 0; });
+                clearInterval(playTimer);
+                post.isPlaying = true;
+                // 模拟播放进度更新
+                playTimer = setInterval(() => {
+                    post.currentTime += 0.1;
+                    if (post.currentTime >= post.duration) {
+                        post.isPlaying = false;
+                        post.currentTime = 0;
+                        clearInterval(playTimer);
+                    }
+                }, 100);
+            };
+
+            // 切换录音状态，模拟录音计时
+            const toggleRecording = () => {
+                if (isRecording.value) {
+                    // 停止录音
+                    isRecording.value = false;
+                    clearInterval(recTimer);
+                    recordedBlob.value = true;
+                } else {
+                    // 开始录音
+                    isRecording.value = true;
+                    recordedBlob.value = null;
+                    recordingTime.value = 0;
+                    recTimer = setInterval(() => recordingTime.value++, 1000);
+                }
+            };
+
+            // 打开上传弹窗，重置录音状态
+            const openUploadModal = () => {
+                showUploadModal.value = true;
+                isRecording.value = false;
+                recordedBlob.value = null;
+            };
+
+            // 格式化时间显示
+            const formatTime = (s) => {
+                return `00:${Math.floor(s).toString().padStart(2, '0')}`;
+            };
+
+            // 发布新帖子，添加至列表
+            const submitPost = () => {
+                posts.value.unshift({
+                    id: Date.now(),
+                    author: '我',
+                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Me',
+                    dialect: uploadForm.value.dialect,
+                    regionId: 'all',
+                    content: uploadForm.value.content,
+                    translation: uploadForm.value.translation,
+                    time: '刚刚',
+                    duration: recordingTime.value || 3,
+                    currentTime: 0,
+                    isPlaying: false,
+                    likes: 0,
+                    verified: false
+                });
+                showUploadModal.value = false;
+            };
+
+            return {
+                showUploadModal,
+                isRecording,
+                recordingTime,
+                recordedBlob,
+                regions,
+                currentFilter,
+                filteredPosts,
+                togglePlay,
+                toggleRecording,
+                openUploadModal,
+                formatTime,
+                submitPost,
+                uploadForm
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
